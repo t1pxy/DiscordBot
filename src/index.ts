@@ -119,7 +119,7 @@ async function refresh(row:any) {
 async function sendReminder(row:any, manual=false) {
   try {
     const ch=await client.channels.fetch(row.channel_id);
-    if (!ch?.isTextBased()) return false;
+    if (!ch?.isSendable()) return false;
     const prefix=mentionRoles(row.id);
     await ch.send({
       content: `${prefix}${prefix ? "\\n" : ""}🔔 **Meeting Reminder**`,
@@ -169,7 +169,16 @@ async function handleCommand(i:ChatInputCommandInteraction) {
     const tx=db.transaction((rs:Role[])=>{for(const r of rs)insertRole.run(id,r.id)}); tx(unique);
 
     const row=db.prepare("SELECT * FROM meetings WHERE id=?").get(id) as any;
-    const msg=await i.channel?.send({content:mentionRoles(id),embeds:[embedFor(row)],components:[buttons(id)],allowedMentions:{roles:unique.map(r=>r.id)}});
+    if (!i.channel?.isSendable()) {
+      return void await i.reply({content:"❌ Channel นี้ไม่รองรับการส่งข้อความ",ephemeral:true});
+    }
+
+    const msg = await i.channel.send({
+      content: mentionRoles(id),
+      embeds: [embedFor(row)],
+      components: [buttons(id)],
+      allowedMentions: { roles: unique.map(r => r.id) }
+    });
     if(msg) db.prepare("UPDATE meetings SET message_id=? WHERE id=?").run(msg.id,id);
     return void await i.reply({content:`✅ สร้าง Meeting #${id} แล้ว — ${discordTime(starts)}${unique.length?`\\n🎯 Mention ${unique.length} Role`: ""}`,ephemeral:true});
   }
