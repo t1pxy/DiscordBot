@@ -173,12 +173,23 @@ export async function handleMeetingButton(interaction: ButtonInteraction): Promi
   }
 }
 
+function hasManageGuild(interaction: RepliableInteraction): boolean {
+  return "memberPermissions" in interaction && (interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ?? false);
+}
+
+async function requireManageGuild(interaction: RepliableInteraction): Promise<boolean> {
+  if (hasManageGuild(interaction)) return true;
+  await interaction.reply({ content: "❌ เฉพาะผู้ที่มีสิทธิ์ Manage Server เท่านั้น", ephemeral: true });
+  return false;
+}
+
 async function handlePanelButton(interaction: ButtonInteraction): Promise<void> {
   if (!interaction.guild) return;
   const action = interaction.customId.split(":")[1];
 
   switch (action) {
     case "create":
+      if (!(await requireManageGuild(interaction))) return;
       await interaction.showModal(buildCreateModal());
       return;
     case "list":
@@ -188,8 +199,13 @@ async function handlePanelButton(interaction: ButtonInteraction): Promise<void> 
       await performMy(interaction, interaction.guild.id, interaction.user.id);
       return;
     case "view":
+      await replyWithMeetingSelect(interaction, action);
+      return;
     case "cancel":
+      await replyWithMeetingSelect(interaction, action);
+      return;
     case "remind":
+      if (!(await requireManageGuild(interaction))) return;
       await replyWithMeetingSelect(interaction, action);
       return;
   }
@@ -223,7 +239,7 @@ function buildCreateModal(): ModalBuilder {
       new ActionRowBuilder<TextInputBuilder>().addComponents(
         new TextInputBuilder()
           .setCustomId("roles")
-          .setLabel("Mention Role (พิมพ์ role ID หรือ @role คั่นด้วยช่องว่าง)")
+          .setLabel("Role ID/mention (คั่นด้วยช่องว่าง)")
           .setStyle(TextInputStyle.Short)
           .setRequired(false)
       )
@@ -259,6 +275,7 @@ export async function handleMeetingModal(interaction: ModalSubmitInteraction): P
   if (!interaction.guild) return;
   const [kind, action] = interaction.customId.split(":");
   if (kind !== "meetingform" || action !== "create") return;
+  if (!(await requireManageGuild(interaction))) return;
 
   const title = interaction.fields.getTextInputValue("title");
   const date = interaction.fields.getTextInputValue("date");
@@ -285,6 +302,7 @@ export async function handleMeetingSelect(interaction: StringSelectMenuInteracti
     case "cancel":
       return performCancel(interaction, interaction.guild.id, id);
     case "remind":
+      if (!(await requireManageGuild(interaction))) return;
       return performRemind(interaction, id);
   }
 }

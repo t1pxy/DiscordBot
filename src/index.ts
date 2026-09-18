@@ -16,10 +16,17 @@ client.once(Events.ClientReady, async (readyClient) => {
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-  if (interaction.isChatInputCommand()) await handleMeetingCommand(interaction);
-  else if (interaction.isButton()) await handleMeetingButton(interaction);
-  else if (interaction.isModalSubmit()) await handleMeetingModal(interaction);
-  else if (interaction.isStringSelectMenu()) await handleMeetingSelect(interaction);
+  try {
+    if (interaction.isChatInputCommand()) await handleMeetingCommand(interaction);
+    else if (interaction.isButton()) await handleMeetingButton(interaction);
+    else if (interaction.isModalSubmit()) await handleMeetingModal(interaction);
+    else if (interaction.isStringSelectMenu()) await handleMeetingSelect(interaction);
+  } catch (error) {
+    console.error("Error handling interaction:", error);
+    if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: "❌ เกิดข้อผิดพลาด กรุณาลองใหม่", ephemeral: true }).catch(() => {});
+    }
+  }
 });
 
 client.login(token);
