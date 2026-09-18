@@ -4,6 +4,7 @@ import path from "node:path";
 
 const dbPath = process.env.DATABASE_URL || "./data/bot.db";
 fs.mkdirSync(path.dirname(path.resolve(dbPath)), { recursive: true });
+
 export const db = new Database(dbPath);
 
 db.exec(`
